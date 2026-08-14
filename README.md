@@ -1,54 +1,49 @@
-# 🌐 Automated Web Server Deployment with Terraform (VPC, EC2 & Nginx User Data)
+# 🌐 Modular AWS Web Infrastructure Deployment with Terraform
 
 ## 📌 Project Overview
-This project demonstrates the automated provisioning of cloud infrastructure on **Amazon Web Services (AWS)** using **Terraform** (Infrastructure as Code).
+This project provisions a secure and automated web server infrastructure on **Amazon Web Services (AWS)** using **Terraform** (IaC).
 
-Building upon the previous VPC configuration, this iteration automates the bootstrap process of an **EC2 instance** to install, configure, and launch an **Nginx Web Server** at launch time using `user_data` scripts.
-
----
-
-## 🛠️ Architecture & Resources Provisioned
-The `main.tf` script deploys the following resources in `us-east-1`:
-
-1. **Virtual Private Cloud (VPC):** Custom CIDR `10.0.0.0/16`.
-2. **Internet Gateway & Route Table:** Enables outbound/inbound public internet connectivity.
-3. **Public Subnet (`10.0.1.0/24`):** Subnet configured with auto-assign public IP enabled.
-4. **Security Group (`sg_servidor_web`):** Firewall allowing inbound traffic on **Port 80 (HTTP)** and **Port 22 (SSH)**.
-5. **EC2 Instance (`t3.micro`):** Ubuntu 22.04 LTS server.
-6. **Automated Bootstrap (`user_data`):** Bash script executed during launch to update packages, install Nginx, enable the service, and serve a custom HTML page.
-7. **Terraform Outputs:** Configured to expose the public IP address upon deployment.
+This iteration adopts professional Infrastructure as Code standards by **decoupling configuration from logic** through modular file architecture (`variables.tf` and `outputs.tf`), eliminating hardcoded parameters and automating endpoint exposure.
 
 ---
 
-## 🔐 Security & Engineering Practices
-- **Automated Provisioning:** Eliminated manual server configuration by embedding shell scripts into IaC lifecycle.
-- **Data Sanitization:** Masked sensitive AWS Account IDs in all published documentation.
-- **Stateless Infrastructure:** Verified clean lifecycle management via `terraform apply` and immediate tear-down using `terraform destroy` to maintain $0 cloud expenses.
+## 🛠️ Project Structure
+```text
+├── main.tf        # Core infrastructure and resource definitions
+├── variables.tf   # Parametrized inputs (CIDR blocks, AMI, instance type)
+├── outputs.tf     # Exposed deployment data (VPC ID, public IP, server URL)
+└── img/           # Deployment screenshots and architectural proof
 
----
+🏗️ Resources Provisioned
 
-## 📸 Deployment Evidence
+    VPC & Networking: Custom VPC (10.0.0.0/16), Public Subnet, Internet Gateway, and Route Table.
 
-### Nginx Web Server Output via HTTP
-![Nginx Web Page](./img/nginx-web.png)
-*Shows the active web page rendered by Nginx, confirming proper Security Group routing and successful execution of the user_data script.*
+    Security Group: Inbound rules strictly limited to HTTP (80) and SSH (22); unrestricted outbound.
 
----
+    Compute: EC2 instance (t3.micro / Ubuntu 22.04 LTS) bootstrapped automatically via user_data to install and run Nginx.
 
-## 🚀 How to Run
-1. Clone the repository:
-   ```bash
-   git clone <repo-url>
+    Outputs: Direct console rendering of VPC IDs and formatted URL endpoints upon deployment.
 
-    Ensure AWS credentials are set up locally (~/.aws/credentials).
+🔐 Engineering & Security Highlights
 
-    Deploy the infrastructure:
+    Dry/Modular Configuration: Replaced static values with explicit types and variable descriptions for cross-environment portability.
 
-    terraform init
-    terraform apply
+    Automated Bootstrapping: Provisioned runtime software stack using startup scripts without manual SSH intervention.
 
-    Access the server in your browser using the outputted IP: http://<PUBLIC_IP>
+    Stateless & Cost-Conscious: Zero ongoing cloud expense guaranteed by full verification of lifecycle commands (apply and destroy).
 
-    Destroy all resources:
-   
-    terraform destroy
+📸 Deployment Evidence
+
+Nginx web server responding directly via public HTTP endpoint.
+🚀 Execution Guide
+Bash
+
+# 1. Initialize provider plugins
+terraform init
+
+# 2. Plan and apply infrastructure
+terraform plan
+terraform apply -auto-approve
+
+# 3. Destroy resources after testing to maintain $0 spend
+terraform destroy -auto-approve
