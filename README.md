@@ -47,3 +47,7 @@ terraform apply -auto-approve
 
 # 3. Destroy resources after testing to maintain $0 spend
 terraform destroy -auto-approve
+
+## 📸 Deployment Evidence
+![Deployment Proof](./img/despliegue-s3-iam.png)
+*Infrastructure deployment verified with active IAM instance profile and isolated S3 bucket.*

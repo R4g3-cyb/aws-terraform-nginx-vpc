@@ -1,0 +1,13 @@
+# Binarios y carpetas locales de Terraform
+.terraform/
+.terraform.lock.hcl
+
+# Estados locales y variables sensibles
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Logs y reportes temporales
+*.log
+crash.log
