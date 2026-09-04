@@ -1,53 +1,41 @@
-# 🌐 Modular AWS Web Infrastructure Deployment with Terraform
+# AWS Hardened Web Infrastructure with Terraform & DevSecOps Auditing
 
-## 📌 Project Overview
-This project provisions a secure and automated web server infrastructure on **Amazon Web Services (AWS)** using **Terraform** (IaC).
+[![Terraform](https://img.shields.io/badge/IaC-Terraform-623CE4?logo=terraform&logoColor=white)](https://www.terraform.io/)
+[![AWS](https://img.shields.io/badge/Cloud-AWS-232F3E?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
+[![Security](https://img.shields.io/badge/Audited_by-Trivy-1976D2?logo=aqua&logoColor=white)](https://trivy.dev/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-This iteration adopts professional Infrastructure as Code standards by **decoupling configuration from logic** through modular file architecture (`variables.tf` and `outputs.tf`), eliminating hardcoded parameters and automating endpoint exposure.
+Este repositorio contiene la definición en código (Infrastructure as Code) de una arquitectura web desacoplada y endurecida en Amazon Web Services (AWS), aplicando principios de **Least Privilege**, defensas contra vectores de ataque comunes en la nube (como SSRF hacia metadatos) y auditoría estática de seguridad automatizada con **Trivy**.
 
 ---
 
-## 🛠️ Project Structure
+## 🏛️ Diagrama de Arquitectura
+
 ```text
-├── main.tf        # Core infrastructure and resource definitions
-├── variables.tf   # Parametrized inputs (CIDR blocks, AMI, instance type)
-├── outputs.tf     # Exposed deployment data (VPC ID, public IP, server URL)
-└── img/           # Deployment screenshots and architectural proof
-
-🏗️ Resources Provisioned
-
-    VPC & Networking: Custom VPC (10.0.0.0/16), Public Subnet, Internet Gateway, and Route Table.
-
-    Security Group: Inbound rules strictly limited to HTTP (80) and SSH (22); unrestricted outbound.
-
-    Compute: EC2 instance (t3.micro / Ubuntu 22.04 LTS) bootstrapped automatically via user_data to install and run Nginx.
-
-    Outputs: Direct console rendering of VPC IDs and formatted URL endpoints upon deployment.
-
-🔐 Engineering & Security Highlights
-
-    Dry/Modular Configuration: Replaced static values with explicit types and variable descriptions for cross-environment portability.
-
-    Automated Bootstrapping: Provisioned runtime software stack using startup scripts without manual SSH intervention.
-
-    Stateless & Cost-Conscious: Zero ongoing cloud expense guaranteed by full verification of lifecycle commands (apply and destroy).
-
-📸 Deployment Evidence
-
-Nginx web server responding directly via public HTTP endpoint.
-🚀 Execution Guide
-Bash
-
-# 1. Initialize provider plugins
-terraform init
-
-# 2. Plan and apply infrastructure
-terraform plan
-terraform apply -auto-approve
-
-# 3. Destroy resources after testing to maintain $0 spend
-terraform destroy -auto-approve
-
-## 📸 Deployment Evidence
-![Deployment Proof](./img/despliegue-s3-iam.png)
-*Infrastructure deployment verified with active IAM instance profile and isolated S3 bucket.*
+                                     VPC (10.0.0.0/16)
+ ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+ │                                                                                         │
+ │   Internet Gateway                                                                      │
+ │          │                                                                              │
+ │          ▼                                                                              │
+ │   Public Subnet (10.0.1.0/24)                                                           │
+ │   ┌─────────────────────────────────────────────────────────────────────────────────┐   │
+ │   │                                                                                 │   │
+ │   │   Security Group (Ingress: TCP 80/443/22 | Egress: TCP 80/443 only)             │   │
+ │   │   ┌─────────────────────────────────────────────────────────────────────────┐   │   │
+ │   │   │                                                                         │   │   │
+ │   │   │   EC2 Instance (Ubuntu 22.04 LTS / Nginx)                               │   │   │
+ │   │   │   ├── IMDSv2 Enforced (Session tokens required, hop-limit=1)            │   │   │
+ │   │   │   ├── Root EBS Volume (Encrypted via KMS/AES-256)                       │   │   │
+ │   │   │   └── IAM Instance Profile (Least Privilege S3 Access)                  │   │   │
+ │   │   │                               │                                         │   │   │
+ │   │   └───────────────────────────────┼─────────────────────────────────────────┘   │   │
+ │   │                                   │ (ReadOnly API Calls)                        │   │
+ │   └───────────────────────────────────┼─────────────────────────────────────────────┘   │
+ │                                       │                                                 │
+ └───────────────────────────────────────┼─────────────────────────────────────────────────┘
+                                         ▼
+                 ┌─────────────────────────────────────────────────┐
+                 │  Private S3 Bucket (SSE-S3 AES-256 Encrypted)   │
+                 │  └── Public Access Block (All 4 flags enabled)  │
+                 └─────────────────────────────────────────────────┘
