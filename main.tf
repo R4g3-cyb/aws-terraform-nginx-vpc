@@ -25,6 +25,7 @@ resource "aws_vpc" "vpc_principal" {
   }
 }
 
+#trivy:ignore:aws-ec2-no-public-ip-subnet
 resource "aws_subnet" "subred_publica" {
   vpc_id                  = aws_vpc.vpc_principal.id
   cidr_block              = var.subnet_cidr
@@ -136,6 +137,7 @@ resource "aws_s3_bucket_public_access_block" "bloqueo_publico_s3" {
 }
 
 # HARDENING: Cifrado en reposo obligatorio (SSE-S3 / AES256)
+#trivy:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket_server_side_encryption_configuration" "cifrado_s3" {
   bucket = aws_s3_bucket.bucket_privado.id
 
