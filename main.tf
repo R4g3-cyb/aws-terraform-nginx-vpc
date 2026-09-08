@@ -225,8 +225,8 @@ resource "aws_instance" "servidor_prueba" {
   vpc_security_group_ids      = [aws_security_group.sg_servidor.id]
   associate_public_ip_address = true
   iam_instance_profile        = aws_iam_instance_profile.perfil_instancia_ec2.name
- 
- # REMEDIACIÓN AWS-0028: Bloquear IMDSv1
+
+  # REMEDIACIÓN AWS-0028: Bloquear IMDSv1
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
