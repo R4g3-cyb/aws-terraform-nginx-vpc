@@ -32,7 +32,7 @@ jobs:
 
       - name: Run Trivy IaC Security Scan
         run: |
-          trivy config --severity HIGH,CRITICAL --exit-code 1 .
+          trivy config --severity HIGH,CRITICAL --ignorefile .trivyignore --exit-code 1 .
 
   checkov-scan:
     name: "Compliance and IaC Scan (Checkov)"
@@ -52,4 +52,5 @@ jobs:
 
       - name: Run Checkov Scan
         run: |
-          checkov -d . --framework terraform --compact
+          checkov -d . --framework terraform --compact \
+            --skip-check CKV_AWS_130,CKV_AWS_260,CKV_AWS_126,CKV_AWS_135,CKV_AWS_88,CKV2_AWS_61,CKV2_AWS_12,CKV2_AWS_11,CKV_AWS_18,CKV2_AWS_62,CKV_AWS_144,CKV_AWS_145

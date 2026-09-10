@@ -1,4 +1,5 @@
 terraform {
+  required_version = ">= 1.5.0"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -8,26 +9,27 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
+  region = var.aws_region
 }
 
-# ==========================================
-# 1. NETWORKING (VPC, Subnet, IGW, Route Table)
-# ==========================================
+# ==============================================================================
+# RED Y VPC
+# ==============================================================================
 
-#checkov:skip=CKV2_AWS_11: VPC Flow Logs estan configurados mediante el recurso aws_flow_log dedicado
 resource "aws_vpc" "vpc_principal" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
 
   tags = {
-    Name = "VPC-Hardened"
+    Name = "VPC-Principal-Hardened"
   }
 }
 
-#trivy:ignore:aws-ec2-no-public-ip-subnet
-#checkov:skip=CKV_AWS_130: Subred publica para acceso directo en entorno de laboratorio
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.vpc_principal.id
+}
+
 resource "aws_subnet" "subred_publica" {
   vpc_id                  = aws_vpc.vpc_principal.id
   cidr_block              = var.subnet_cidr
@@ -39,7 +41,7 @@ resource "aws_subnet" "subred_publica" {
   }
 }
 
-resource "aws_internet_gateway" "igw_principal" {
+resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc_principal.id
 
   tags = {
@@ -47,95 +49,76 @@ resource "aws_internet_gateway" "igw_principal" {
   }
 }
 
-resource "aws_route_table" "tabla_publica" {
+resource "aws_route_table" "tabla_ruteo_publica" {
   vpc_id = aws_vpc.vpc_principal.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw_principal.id
+    gateway_id = aws_internet_gateway.igw.id
   }
 
   tags = {
-    Name = "Tabla-Rutas-Publica"
+    Name = "Tabla-Ruteo-Publica"
   }
 }
 
-resource "aws_route_table_association" "asociacion_subred" {
+resource "aws_route_table_association" "asociacion_publica" {
   subnet_id      = aws_subnet.subred_publica.id
-  route_table_id = aws_route_table.tabla_publica.id
+  route_table_id = aws_route_table.tabla_ruteo_publica.id
 }
 
-# ==========================================
-# 2. SECURITY GROUP (SSH Restringido + HTTP)
-# ==========================================
+# ==============================================================================
+# SEGURIDAD Y FIREWALLING (SECURITY GROUPS)
+# ==============================================================================
 
-# Remediacion CKV2_AWS_12: Cerrar por completo el Default Security Group de la VPC
-#checkov:skip=CKV_AWS_260: Puerto 80 publico requerido para el servidor NGINX
 resource "aws_security_group" "sg_servidor" {
-  name        = "sg_servidor_hardened"
-  description = "Trafico HTTP publico y SSH restringido por IP"
+  name        = "sg-servidor-web"
+  description = "Security Group endurecido para servidor web"
   vpc_id      = aws_vpc.vpc_principal.id
 
   ingress {
-    description = "HTTP publico"
+    description = "Acceso HTTP publico"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # HARDENING: Puerto 22 no expuesto a 0.0.0.0/0
-  ingress {
-    description = "SSH exclusivo para IP de administracion"
-    from_port   = 22
-    to_port     = 22
+  egress {
+    description = "Salida HTTP para descargas y paquetes"
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = [var.mi_ip]
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  #trivy:ignore:AVD-AWS-0104 Egress permitido a internet exclusivamente para repositorios y parches
   egress {
-    description = "HTTPS para paquetes"
+    description = "Salida HTTPS para actualizaciones de repositorios"
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  #trivy:ignore:AVD-AWS-0104 Egress permitido a internet exclusivamente para repositorios y parches
-  egress {
-    description = "HTTP para paquetes"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags = {
-    Name = "SG-Hardened"
+    Name = "SG-Servidor-Web"
   }
 }
 
-# ==========================================
-# 3. S3 BUCKET (Hardening: Block Public + Encryption + Versioning)
-# ==========================================
+# ==============================================================================
+# ALMACENAMIENTO (S3 BUCKET HARDENED)
+# ==============================================================================
 
-#checkov:skip=CKV_AWS_145: Cifrado SSE-S3 AES256 suficiente para lab sin incurrir en costos fijos de KMS CMK
-#checkov:skip=CKV_AWS_144: Sin replicacion cross-region en entorno lab
-#checkov:skip=CKV_AWS_18: Access logging configurado mediante recurso aws_s3_bucket_logging dedicado
-#checkov:skip=CKV2_AWS_61: Sin ciclo de vida para laboratorio temporal
-#checkov:skip=CKV2_AWS_62: Sin notificaciones de eventos S3 requeridas
 resource "aws_s3_bucket" "bucket_privado" {
-  bucket_prefix = "lab-seguro-hardened-"
+  bucket_prefix = "lab-privado-hardened-"
   force_destroy = true
 
   tags = {
-    Name        = "S3-Hardened-Bucket"
+    Name        = "Bucket-Privado-Hardened"
     Environment = "DevSecOps"
   }
 }
 
-# Bloqueo total de acceso público
 resource "aws_s3_bucket_public_access_block" "bloqueo_publico_s3" {
   bucket = aws_s3_bucket.bucket_privado.id
 
@@ -145,8 +128,6 @@ resource "aws_s3_bucket_public_access_block" "bloqueo_publico_s3" {
   restrict_public_buckets = true
 }
 
-# HARDENING: Cifrado en reposo obligatorio (SSE-S3 / AES256)
-#trivy:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket_server_side_encryption_configuration" "cifrado_s3" {
   bucket = aws_s3_bucket.bucket_privado.id
 
@@ -157,114 +138,51 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "cifrado_s3" {
   }
 }
 
-# HARDENING: Versionado activado
 resource "aws_s3_bucket_versioning" "versionado_s3" {
   bucket = aws_s3_bucket.bucket_privado.id
+
   versioning_configuration {
     status = "Enabled"
   }
 }
 
-# ==========================================
-# 4. IAM (Least Privilege Role + Instance Profile)
-# ==========================================
+# ==============================================================================
+# COMPUTO (EC2 HARDENED + IMDSv2)
+# ==============================================================================
 
-resource "aws_iam_role" "rol_ec2_s3" {
-  name = "rol_ec2_lectura_s3_hardened"
+data "aws_ami" "ubuntu_latest" {
+  most_recent = true
+  owners      = ["099720109477"]
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com"
-        }
-      }
-    ]
-  })
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
 
-  tags = {
-    Name = "IAM-Role-EC2-S3-LeastPrivilege"
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
   }
 }
 
-resource "aws_iam_policy" "politica_lectura_s3" {
-  name        = "politica_lectura_s3_estricta"
-  description = "Permite solo GetObject y ListBucket en el bucket especifico"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:ListBucket"
-        ]
-        Resource = aws_s3_bucket.bucket_privado.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject"
-        ]
-        Resource = "${aws_s3_bucket.bucket_privado.arn}/*"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_role_policy_attachment" "adjuntar_politica" {
-  role       = aws_iam_role.rol_ec2_s3.name
-  policy_arn = aws_iam_policy.politica_lectura_s3.arn
-}
-
-resource "aws_iam_instance_profile" "perfil_instancia_ec2" {
-  name = "perfil_instancia_ec2_hardened"
-  role = aws_iam_role.rol_ec2_s3.name
-}
-
-# ==========================================
-# 5. CÓMPUTO (EC2 con EBS Cifrado e Instance Profile)
-# ==========================================
-
-#checkov:skip=CKV_AWS_126: Detailed monitoring deshabilitado para evitar costos de CloudWatch en lab
-#checkov:skip=CKV_AWS_135: Instancia lab t2/t3 sin optimizacion EBS dedicada
-#checkov:skip=CKV_AWS_88: IP publica requerida para acceso web directo en este escenario
 resource "aws_instance" "servidor_prueba" {
-  ami                         = var.ami_id
-  instance_type               = var.instance_type
+  ami                         = data.aws_ami.ubuntu_latest.id
+  instance_type               = "t2.micro"
   subnet_id                   = aws_subnet.subred_publica.id
   vpc_security_group_ids      = [aws_security_group.sg_servidor.id]
   associate_public_ip_address = true
-  iam_instance_profile        = aws_iam_instance_profile.perfil_instancia_ec2.name
 
-  # REMEDIACIÓN AWS-0028: Bloquear IMDSv1
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
     http_put_response_hop_limit = 1
   }
 
-  # HARDENING: Cifrado en el disco raíz EBS
   root_block_device {
-    encrypted   = true
-    volume_size = 8
-    volume_type = "gp3"
+    encrypted = true
   }
 
-  user_data = <<-EOF
-              #!/bin/bash
-              sleep 30
-              apt-get update -y
-              apt-get install -y nginx awscli
-              systemctl start nginx
-              systemctl enable nginx
-              echo "<h1>Infraestructura AWS Hardened con Terraform - DevSecOps Lab</h1>" > /var/www/html/index.html
-              EOF
-
   tags = {
-    Name = "EC2-Hardened-IaC"
+    Name = "Servidor-Prueba-Hardened"
   }
 }
