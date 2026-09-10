@@ -24,9 +24,7 @@ jobs:
         run: terraform fmt -check
 
       - name: Install Trivy
-        uses: aquasecurity/setup-trivy@v0.2.2
-        with:
-          cache: true
+        uses: aquasecurity/setup-trivy@v0.2.6
 
       - name: Run Trivy Secret Scan
         run: |
