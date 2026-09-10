@@ -255,4 +255,16 @@ resource "aws_instance" "servidor_prueba" {
   tags = {
     Name = "EC2-Hardened-IaC"
   }
+
+  resource "aws_security_group" "sg_inseguro_test" {
+    name   = "sg-test-leak"
+    vpc_id = aws_vpc.vpc_principal.id
+
+    egress {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
 }
