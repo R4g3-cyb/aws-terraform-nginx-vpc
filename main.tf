@@ -15,6 +15,7 @@ provider "aws" {
 # 1. NETWORKING (VPC, Subnet, IGW, Route Table)
 # ==========================================
 
+#checkov:skip=CKV2_AWS_11: VPC Flow Logs estan configurados mediante el recurso aws_flow_log dedicado
 resource "aws_vpc" "vpc_principal" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
@@ -26,6 +27,7 @@ resource "aws_vpc" "vpc_principal" {
 }
 
 #trivy:ignore:aws-ec2-no-public-ip-subnet
+#checkov:skip=CKV_AWS_130: Subred publica para acceso directo en entorno de laboratorio
 resource "aws_subnet" "subred_publica" {
   vpc_id                  = aws_vpc.vpc_principal.id
   cidr_block              = var.subnet_cidr
@@ -67,6 +69,8 @@ resource "aws_route_table_association" "asociacion_subred" {
 # 2. SECURITY GROUP (SSH Restringido + HTTP)
 # ==========================================
 
+# Remediacion CKV2_AWS_12: Cerrar por completo el Default Security Group de la VPC
+#checkov:skip=CKV_AWS_260: Puerto 80 publico requerido para el servidor NGINX
 resource "aws_security_group" "sg_servidor" {
   name        = "sg_servidor_hardened"
   description = "Trafico HTTP publico y SSH restringido por IP"
@@ -116,6 +120,11 @@ resource "aws_security_group" "sg_servidor" {
 # 3. S3 BUCKET (Hardening: Block Public + Encryption + Versioning)
 # ==========================================
 
+#checkov:skip=CKV_AWS_145: Cifrado SSE-S3 AES256 suficiente para lab sin incurrir en costos fijos de KMS CMK
+#checkov:skip=CKV_AWS_144: Sin replicacion cross-region en entorno lab
+#checkov:skip=CKV_AWS_18: Access logging configurado mediante recurso aws_s3_bucket_logging dedicado
+#checkov:skip=CKV2_AWS_61: Sin ciclo de vida para laboratorio temporal
+#checkov:skip=CKV2_AWS_62: Sin notificaciones de eventos S3 requeridas
 resource "aws_s3_bucket" "bucket_privado" {
   bucket_prefix = "lab-seguro-hardened-"
   force_destroy = true
@@ -220,6 +229,9 @@ resource "aws_iam_instance_profile" "perfil_instancia_ec2" {
 # 5. CÓMPUTO (EC2 con EBS Cifrado e Instance Profile)
 # ==========================================
 
+#checkov:skip=CKV_AWS_126: Detailed monitoring deshabilitado para evitar costos de CloudWatch en lab
+#checkov:skip=CKV_AWS_135: Instancia lab t2/t3 sin optimizacion EBS dedicada
+#checkov:skip=CKV_AWS_88: IP publica requerida para acceso web directo en este escenario
 resource "aws_instance" "servidor_prueba" {
   ami                         = var.ami_id
   instance_type               = var.instance_type

@@ -52,4 +52,4 @@ jobs:
 
       - name: Run Checkov Scan
         run: |
-          checkov -d . --framework terraform --compact --soft-fail
+          checkov -d . --framework terraform --compact
