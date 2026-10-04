@@ -1,6 +1,9 @@
 repos:
-  - repo: https://github.com/aquasecurity/trivy
-    rev: v0.58.0
+  - repo: local
     hooks:
       - id: trivy-config
-        args: ["--severity", "HIGH,CRITICAL", "."]
+        name: Trivy IaC scan
+        entry: trivy config --severity HIGH,CRITICAL --exit-code 1 .
+        language: system
+        pass_filenames: false
+        files: \.tf$
