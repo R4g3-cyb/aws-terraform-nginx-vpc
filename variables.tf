@@ -39,3 +39,15 @@ variable "mi_ip" {
   type        = string
   default     = "181.44.0.1/32" # Podés dejarla por defecto o cambiarla por tu IP pública
 }
+
+variable "aws_region" {
+  description = "Region de AWS para el despliegue"
+  type        = string
+  default     = "us-east-1" # Cambialo si usás us-east-2 u otra region
+}
+
+variable "my_ip" {
+  description = "IP publica para acceso SSH"
+  type        = string
+  sensitive   = true
+}

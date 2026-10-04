@@ -17,3 +17,8 @@ output "bucket_encryption_status" {
   description = "Algoritmo de cifrado aplicado en S3"
   value       = one(aws_s3_bucket_server_side_encryption_configuration.cifrado_s3.rule).apply_server_side_encryption_by_default[0].sse_algorithm
 }
+
+output "security_group_id" {
+  description = "ID del security group creado"
+  value       = module.mi_sg.sg_id
+}

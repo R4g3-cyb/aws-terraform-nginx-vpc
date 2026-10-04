@@ -1,0 +1,6 @@
+repos:
+  - repo: https://github.com/aquasecurity/trivy
+    rev: v0.58.0
+    hooks:
+      - id: trivy-config
+        args: ["--severity", "HIGH,CRITICAL", "."]

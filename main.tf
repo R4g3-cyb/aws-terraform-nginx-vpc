@@ -26,9 +26,6 @@ resource "aws_vpc" "vpc_principal" {
   }
 }
 
-resource "aws_default_security_group" "default" {
-  vpc_id = aws_vpc.vpc_principal.id
-}
 
 resource "aws_subnet" "subred_publica" {
   vpc_id                  = aws_vpc.vpc_principal.id
@@ -72,7 +69,7 @@ resource "aws_route_table_association" "asociacion_publica" {
 # ==============================================================================
 
 resource "aws_security_group" "sg_servidor" {
-  name        = "sg-servidor-web"
+  name        = "sg.servidor.web"
   description = "Security Group endurecido para servidor web"
   vpc_id      = aws_vpc.vpc_principal.id
 
@@ -103,6 +100,13 @@ resource "aws_security_group" "sg_servidor" {
   tags = {
     Name = "SG-Servidor-Web"
   }
+}
+
+module "mi_sg" {
+  source     = "./modules/security_group"
+  vpc_id     = aws_vpc.vpc_principal.id
+  allowed_ip = var.my_ip
+  sg_name    = "app-sg-"
 }
 
 # ==============================================================================
@@ -167,9 +171,9 @@ data "aws_ami" "ubuntu_latest" {
 
 resource "aws_instance" "servidor_prueba" {
   ami                         = data.aws_ami.ubuntu_latest.id
-  instance_type               = "t2.micro"
+  instance_type               = var.instance_type
   subnet_id                   = aws_subnet.subred_publica.id
-  vpc_security_group_ids      = [aws_security_group.sg_servidor.id]
+  vpc_security_group_ids = [module.mi_sg.sg_id]
   associate_public_ip_address = true
 
   metadata_options {
